@@ -25,6 +25,7 @@ export default function ActionTab() {
   const [type, setType] = useState<"in" | "out">("in");
   const [itemId, setItemId] = useState(ITEMS[0]?.id ?? "");
   const [qtyBySize, setQtyBySize] = useState<Record<string, number>>({});
+  const [recipient, setRecipient] = useState("");
   const [note, setNote] = useState("");
 
   const selectedItem = useMemo(() => ITEMS.find((item) => item.id === itemId) ?? ITEMS[0], [itemId]);
@@ -49,6 +50,10 @@ export default function ActionTab() {
       toast.error("사이즈별 수량을 1개 이상 입력해 주세요.");
       return;
     }
+    if (type === "out" && recipient.trim().length === 0) {
+      toast.error("불출 대상자를 입력해 주세요.");
+      return;
+    }
 
     const safeDay = String(Math.min(31, Math.max(1, Number(day) || 1))).padStart(2, "0");
     const date = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${safeDay}`;
@@ -71,12 +76,14 @@ export default function ActionTab() {
         itemLabel,
         size: row.size,
         qty: row.qty,
+        recipient: recipient.trim(),
         note: note.trim(),
       };
       addAction(log);
     }
 
     setNote("");
+    setRecipient("");
     setQtyBySize({});
     toast.success(type === "in" ? `입고 ${selectedRows.length}건 등록 완료` : `불출 ${selectedRows.length}건 등록 완료`);
   };
@@ -132,6 +139,16 @@ export default function ActionTab() {
             </select>
           </label>
           <label className="text-sm text-slate-700 md:col-span-2">
+            불출 대상자
+            <input
+              type="text"
+              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
+              value={recipient}
+              onChange={(e) => setRecipient(e.target.value)}
+              placeholder={type === "out" ? "불출 대상자 이름 (필수)" : "입고 시 선택 입력"}
+            />
+          </label>
+          <label className="text-sm text-slate-700 md:col-span-2">
             비고
             <input type="text" className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2" value={note} onChange={(e) => setNote(e.target.value)} placeholder="선택 입력" />
           </label>
@@ -177,6 +194,7 @@ export default function ActionTab() {
                   <th className="px-2 py-2">품목</th>
                   <th className="px-2 py-2">사이즈</th>
                   <th className="px-2 py-2">수량</th>
+                  <th className="px-2 py-2">불출 대상자</th>
                   <th className="px-2 py-2">비고</th>
                   <th className="px-2 py-2">관리</th>
                 </tr>
@@ -193,6 +211,7 @@ export default function ActionTab() {
                     <td className="px-2 py-2">{action.itemLabel}</td>
                     <td className="px-2 py-2">{action.size}</td>
                     <td className="px-2 py-2">{action.qty}</td>
+                    <td className="px-2 py-2">{action.recipient || "-"}</td>
                     <td className="px-2 py-2">{action.note || "-"}</td>
                     <td className="px-2 py-2">
                       <button

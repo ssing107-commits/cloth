@@ -44,6 +44,18 @@ const ensureInventoryShape = (inventory: Inventory): Inventory => {
 const APP_DOC = doc(db, "cloth", "main");
 const FIRESTORE_WRITE_KEY = process.env.NEXT_PUBLIC_FIREBASE_WRITE_KEY ?? "";
 
+const normalizeActions = (actions: ActionLog[] | undefined): ActionLog[] => {
+  if (!Array.isArray(actions)) {
+    return [];
+  }
+
+  return actions.map((action) => ({
+    ...action,
+    note: typeof action.note === "string" ? action.note : "",
+    recipient: typeof action.recipient === "string" ? action.recipient : "",
+  }));
+};
+
 const readLegacyLocalData = (): { inventory: Inventory; actions: ActionLog[] } | null => {
   try {
     const raw = localStorage.getItem("pibok-data");
@@ -61,7 +73,7 @@ const readLegacyLocalData = (): { inventory: Inventory; actions: ActionLog[] } |
 
     return {
       inventory: ensureInventoryShape(inventory ?? {}),
-      actions: Array.isArray(actions) ? actions : [],
+      actions: normalizeActions(actions),
     };
   } catch {
     return null;
@@ -79,7 +91,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
         const data = snapshot.data() as { inventory?: Inventory; actions?: ActionLog[] };
         set({
           inventory: ensureInventoryShape(data.inventory ?? {}),
-          actions: Array.isArray(data.actions) ? data.actions : [],
+          actions: normalizeActions(data.actions),
           hydrated: true,
         });
         return;
@@ -87,7 +99,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
 
       const legacy = readLegacyLocalData();
       const initialInventory = legacy?.inventory ?? buildInitialInventory();
-      const initialActions = legacy?.actions ?? [];
+      const initialActions = normalizeActions(legacy?.actions ?? []);
       await setDoc(APP_DOC, {
         inventory: initialInventory,
         actions: initialActions,

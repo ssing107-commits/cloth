@@ -3,13 +3,14 @@ import { ActionLog } from "@/types";
 const escapeCsv = (value: string): string => `"${value.replace(/"/g, '""')}"`;
 
 export const downloadMonthlyCsv = (month: string, rows: ActionLog[]): void => {
-  const header = ["날짜", "유형", "품목", "사이즈", "수량", "비고"];
+  const header = ["날짜", "유형", "품목", "사이즈", "수량", "불출대상자", "비고"];
   const body = rows.map((row) => [
     row.date,
     row.type === "in" ? "입고" : "불출",
     row.itemLabel,
     row.size,
     String(row.qty),
+    row.recipient ?? "",
     row.note ?? "",
   ]);
 

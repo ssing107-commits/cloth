@@ -9,6 +9,7 @@ export interface ActionLog {
   size: string;
   qty: number;
   note: string;
+  recipient: string;
 }
 
 export interface AppData {
