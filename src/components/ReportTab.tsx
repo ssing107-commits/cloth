@@ -1,0 +1,194 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { format } from "date-fns";
+import toast from "react-hot-toast";
+import { ITEMS } from "@/constants/items";
+import { useAppStore } from "@/store/useAppStore";
+import { downloadMonthlyCsv } from "@/utils/csv";
+
+const today = new Date();
+const currentYear = Number(format(today, "yyyy"));
+const currentMonth = Number(format(today, "MM"));
+const yearOptions = Array.from({ length: 7 }, (_, i) => currentYear - 3 + i);
+const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1);
+
+interface ItemSummary {
+  itemId: string;
+  itemLabel: string;
+  inBySize: Record<string, number>;
+  outBySize: Record<string, number>;
+  sizes: string[];
+}
+
+export default function ReportTab() {
+  const hydrated = useAppStore((state) => state.hydrated);
+  const actions = useAppStore((state) => state.actions);
+  const [year, setYear] = useState(currentYear);
+  const [month, setMonth] = useState(currentMonth);
+  const [appliedMonth, setAppliedMonth] = useState(`${currentYear}-${String(currentMonth).padStart(2, "0")}`);
+
+  const monthlyActions = useMemo(() => actions.filter((action) => action.date.startsWith(appliedMonth)), [actions, appliedMonth]);
+
+  const totals = useMemo(
+    () => ({
+      inQty: monthlyActions.filter((action) => action.type === "in").reduce((sum, action) => sum + action.qty, 0),
+      outQty: monthlyActions.filter((action) => action.type === "out").reduce((sum, action) => sum + action.qty, 0),
+      count: monthlyActions.length,
+    }),
+    [monthlyActions],
+  );
+
+  const summaries = useMemo<ItemSummary[]>(() => {
+    const itemMap = new Map<string, ItemSummary>();
+
+    for (const action of monthlyActions) {
+      const item = ITEMS.find((it) => it.id === action.itemId);
+      if (!item) {
+        continue;
+      }
+
+      if (!itemMap.has(action.itemId)) {
+        itemMap.set(action.itemId, {
+          itemId: action.itemId,
+          itemLabel: `${item.name} ${item.sub}`,
+          inBySize: Object.fromEntries(item.sizes.map((size) => [size, 0])),
+          outBySize: Object.fromEntries(item.sizes.map((size) => [size, 0])),
+          sizes: item.sizes,
+        });
+      }
+
+      const target = itemMap.get(action.itemId);
+      if (!target) {
+        continue;
+      }
+
+      if (action.type === "in") {
+        target.inBySize[action.size] = (target.inBySize[action.size] ?? 0) + action.qty;
+      } else {
+        target.outBySize[action.size] = (target.outBySize[action.size] ?? 0) + action.qty;
+      }
+    }
+
+    return Array.from(itemMap.values());
+  }, [monthlyActions]);
+
+  if (!hydrated) {
+    return <p className="rounded-lg border border-slate-200 bg-white p-5 text-sm text-slate-500">데이터를 불러오는 중입니다...</p>;
+  }
+
+  return (
+    <section className="space-y-4">
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <label className="text-sm text-slate-700">
+            조회 연도
+            <select className="mt-1 block rounded-md border border-slate-300 px-3 py-2" value={year} onChange={(e) => setYear(Number(e.target.value))}>
+              {yearOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}년
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm text-slate-700">
+            조회 월
+            <select className="mt-1 block rounded-md border border-slate-300 px-3 py-2" value={month} onChange={(e) => setMonth(Number(e.target.value))}>
+              {monthOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}월
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className="h-10 rounded-md bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700"
+            onClick={() => setAppliedMonth(`${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}`)}
+          >
+            보고서 생성
+          </button>
+          <button
+            type="button"
+            className="h-10 rounded-md border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            onClick={() => {
+              if (monthlyActions.length === 0) {
+                toast.error("내보낼 기록이 없습니다.");
+                return;
+              }
+              downloadMonthlyCsv(appliedMonth, monthlyActions);
+              toast.success("CSV를 다운로드했습니다.");
+            }}
+          >
+            CSV 내보내기
+          </button>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StatCard title="총 입고 수량" value={totals.inQty} />
+        <StatCard title="총 불출 수량" value={totals.outQty} />
+        <StatCard title="총 거래 건수" value={totals.count} />
+      </div>
+
+      {summaries.length === 0 ? (
+        <p className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">해당 월의 거래 기록이 없습니다.</p>
+      ) : (
+        summaries.map((summary) => {
+          const inTotal = summary.sizes.reduce((sum, size) => sum + (summary.inBySize[size] ?? 0), 0);
+          const outTotal = summary.sizes.reduce((sum, size) => sum + (summary.outBySize[size] ?? 0), 0);
+
+          return (
+            <article key={summary.itemId} className="rounded-xl border border-slate-200 bg-white p-4">
+              <h3 className="mb-3 text-base font-semibold text-slate-900">{summary.itemLabel}</h3>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-600">
+                      <th className="px-2 py-2 text-left">구분</th>
+                      {summary.sizes.map((size) => (
+                        <th key={size} className="px-2 py-2 text-right">
+                          {size}
+                        </th>
+                      ))}
+                      <th className="px-2 py-2 text-right">합계</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-slate-100">
+                      <td className="px-2 py-2 font-medium text-emerald-700">입고</td>
+                      {summary.sizes.map((size) => (
+                        <td key={`in-${size}`} className="px-2 py-2 text-right">
+                          {summary.inBySize[size] === 0 ? "-" : summary.inBySize[size]}
+                        </td>
+                      ))}
+                      <td className="px-2 py-2 text-right font-semibold">{inTotal === 0 ? "-" : inTotal}</td>
+                    </tr>
+                    <tr>
+                      <td className="px-2 py-2 font-medium text-orange-700">불출</td>
+                      {summary.sizes.map((size) => (
+                        <td key={`out-${size}`} className="px-2 py-2 text-right">
+                          {summary.outBySize[size] === 0 ? "-" : summary.outBySize[size]}
+                        </td>
+                      ))}
+                      <td className="px-2 py-2 text-right font-semibold">{outTotal === 0 ? "-" : outTotal}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+          );
+        })
+      )}
+    </section>
+  );
+}
+
+function StatCard({ title, value }: { title: string; value: number }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <p className="text-sm text-slate-500">{title}</p>
+      <p className="mt-1 text-2xl font-bold text-slate-900">{value}</p>
+    </div>
+  );
+}
