@@ -36,7 +36,6 @@ export default function ReportTab() {
     () => ({
       inQty: monthlyActions.filter((action) => action.type === "in").reduce((sum, action) => sum + action.qty, 0),
       outQty: monthlyActions.filter((action) => action.type === "out").reduce((sum, action) => sum + action.qty, 0),
-      count: monthlyActions.length,
     }),
     [monthlyActions],
   );
@@ -131,10 +130,9 @@ export default function ReportTab() {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <StatCard title="총 입고 수량" value={totals.inQty} />
         <StatCard title="총 불출 수량" value={totals.outQty} />
-        <StatCard title="총 거래 건수" value={totals.count} />
       </div>
 
       {summaries.length === 0 ? (

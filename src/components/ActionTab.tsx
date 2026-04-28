@@ -19,6 +19,9 @@ interface PendingRow {
   qty: number;
 }
 
+type ActionTypeLabel = "입고" | "불출";
+type ActionReasonLabel = "신규입사" | "노후교체";
+
 export default function ActionTab() {
   const hydrated = useAppStore((state) => state.hydrated);
   const actions = useAppStore((state) => state.actions);
@@ -29,8 +32,8 @@ export default function ActionTab() {
   const [year, setYear] = useState(currentYear);
   const [month, setMonth] = useState(Number(format(today, "MM")));
   const [day, setDay] = useState(format(today, "dd"));
-  const [type, setType] = useState<"in" | "out">("in");
-  const [reason, setReason] = useState<"new-hire" | "replacement">("new-hire");
+  const [type, setType] = useState<ActionTypeLabel>("입고");
+  const [reason, setReason] = useState<ActionReasonLabel>("신규입사");
   const [itemId, setItemId] = useState(ITEMS[0]?.id ?? "");
   const [qtyBySize, setQtyBySize] = useState<Record<string, number>>({});
   const [pendingRows, setPendingRows] = useState<PendingRow[]>([]);
@@ -101,7 +104,7 @@ export default function ActionTab() {
       toast.error("등록할 수량을 먼저 입력하거나 묶음 목록에 추가해 주세요.");
       return;
     }
-    if (type === "out" && recipient.trim().length === 0) {
+    if (type === "불출" && recipient.trim().length === 0) {
       toast.error("불출 대상자를 입력해 주세요.");
       return;
     }
@@ -111,18 +114,21 @@ export default function ActionTab() {
 
     for (const row of allRows) {
       const stock = getStock(row.itemId, row.size);
-      if (type === "out" && stock < row.qty) {
+      if (type === "불출" && stock < row.qty) {
         toast.error(`재고 부족: ${row.itemLabel} ${row.size}`);
         return;
       }
     }
 
+    const actionType: "in" | "out" = type === "입고" ? "in" : "out";
+    const actionReason: "new-hire" | "replacement" = reason === "신규입사" ? "new-hire" : "replacement";
+
     for (const row of allRows) {
       const log: ActionLog = {
         id: crypto.randomUUID(),
         date,
-        type,
-        reason,
+        type: actionType,
+        reason: actionReason,
         itemId: row.itemId,
         itemLabel: row.itemLabel,
         size: row.size,
@@ -137,7 +143,7 @@ export default function ActionTab() {
     setRecipient("");
     setQtyBySize({});
     setPendingRows([]);
-    toast.success(type === "in" ? `입고 ${allRows.length}건 등록 완료` : `불출 ${allRows.length}건 등록 완료`);
+    toast.success(type === "입고" ? `입고 ${allRows.length}건 등록 완료` : `불출 ${allRows.length}건 등록 완료`);
   };
 
   if (!hydrated) {
@@ -175,17 +181,17 @@ export default function ActionTab() {
           </label>
           <label className="text-sm text-slate-700">
             유형
-            <select className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2" value={type} onChange={(e) => setType(e.target.value as "in" | "out")}>
-              <option value="in">입고</option>
-              <option value="out">불출</option>
+            <select className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2" value={type} onChange={(e) => setType(e.target.value as ActionTypeLabel)}>
+              <option value="입고">입고</option>
+              <option value="불출">불출</option>
             </select>
           </label>
-          {type === "out" && (
+          {type === "불출" && (
             <label className="text-sm text-slate-700">
               사유
-              <select className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2" value={reason} onChange={(e) => setReason(e.target.value as "new-hire" | "replacement")}>
-                <option value="new-hire">신규입사</option>
-                <option value="replacement">노후교체</option>
+              <select className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2" value={reason} onChange={(e) => setReason(e.target.value as ActionReasonLabel)}>
+                <option value="신규입사">신규입사</option>
+                <option value="노후교체">노후교체</option>
               </select>
             </label>
           )}
@@ -199,7 +205,7 @@ export default function ActionTab() {
               ))}
             </select>
           </label>
-          {type === "out" && (
+          {type === "불출" && (
             <label className="text-sm text-slate-700 md:col-span-2">
               불출 대상자
               <input
