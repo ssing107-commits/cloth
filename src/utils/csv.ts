@@ -7,7 +7,7 @@ export const downloadMonthlyCsv = (month: string, rows: ActionLog[]): void => {
   const body = rows.map((row) => [
     row.date,
     row.type === "in" ? "입고" : "불출",
-    row.reason === "replacement" ? "노후교체" : "신규입사",
+    row.reason === "stock-secure" ? "재고확보" : row.reason === "replacement" ? "노후교체" : "신규입사",
     row.itemLabel,
     row.size,
     String(row.qty),

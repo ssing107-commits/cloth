@@ -54,7 +54,7 @@ const normalizeActions = (actions: ActionLog[] | undefined): ActionLog[] => {
   return actions.map((action) => ({
     ...action,
     itemLabel: normalizeItemLabel(typeof action.itemLabel === "string" ? action.itemLabel : ""),
-    reason: action.reason === "replacement" ? "replacement" : "new-hire",
+    reason: action.reason === "stock-secure" || action.reason === "replacement" ? action.reason : action.type === "in" ? "stock-secure" : "new-hire",
     note: typeof action.note === "string" ? action.note : "",
     recipient: typeof action.recipient === "string" ? action.recipient : "",
   }));

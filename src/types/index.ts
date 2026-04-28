@@ -4,7 +4,7 @@ export interface ActionLog {
   id: string;
   date: string;
   type: "in" | "out";
-  reason: "new-hire" | "replacement";
+  reason: "stock-secure" | "new-hire" | "replacement";
   itemId: string;
   itemLabel: string;
   size: string;

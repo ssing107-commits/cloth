@@ -136,7 +136,7 @@ export default function ActionTab() {
     }
 
     const actionType: "in" | "out" = type === "입고" ? "in" : "out";
-    const actionReason: "new-hire" | "replacement" = reason === "신규입사" ? "new-hire" : "replacement";
+    const actionReason: "stock-secure" | "new-hire" | "replacement" = actionType === "in" ? "stock-secure" : reason === "신규입사" ? "new-hire" : "replacement";
 
     for (const row of allRows) {
       const log: ActionLog = {
@@ -379,7 +379,7 @@ export default function ActionTab() {
                       </span>
                     </td>
                     <td className="px-2 py-2">{action.itemLabel}</td>
-                    <td className="px-2 py-2">{action.reason === "replacement" ? "노후교체" : "신규입사"}</td>
+                    <td className="px-2 py-2">{action.reason === "stock-secure" ? "재고확보" : action.reason === "replacement" ? "노후교체" : "신규입사"}</td>
                     <td className="px-2 py-2">{action.size}</td>
                     <td className="px-2 py-2">{action.qty}</td>
                     <td className="px-2 py-2">{action.recipient || "-"}</td>
