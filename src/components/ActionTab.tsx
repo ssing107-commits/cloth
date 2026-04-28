@@ -130,13 +130,15 @@ export default function ActionTab() {
               <option value="out">불출</option>
             </select>
           </label>
-          <label className="text-sm text-slate-700">
-            사유
-            <select className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2" value={reason} onChange={(e) => setReason(e.target.value as "new-hire" | "replacement")}>
-              <option value="new-hire">신규입사</option>
-              <option value="replacement">노후교체</option>
-            </select>
-          </label>
+          {type === "out" && (
+            <label className="text-sm text-slate-700">
+              사유
+              <select className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2" value={reason} onChange={(e) => setReason(e.target.value as "new-hire" | "replacement")}>
+                <option value="new-hire">신규입사</option>
+                <option value="replacement">노후교체</option>
+              </select>
+            </label>
+          )}
           <label className="text-sm text-slate-700">
             품목
             <select className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2" value={itemId} onChange={(e) => handleItemChange(e.target.value)}>
@@ -147,16 +149,18 @@ export default function ActionTab() {
               ))}
             </select>
           </label>
-          <label className="text-sm text-slate-700 md:col-span-2">
-            불출 대상자
-            <input
-              type="text"
-              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
-              value={recipient}
-              onChange={(e) => setRecipient(e.target.value)}
-              placeholder={type === "out" ? "불출 대상자 이름 (필수)" : "입고 시 선택 입력"}
-            />
-          </label>
+          {type === "out" && (
+            <label className="text-sm text-slate-700 md:col-span-2">
+              불출 대상자
+              <input
+                type="text"
+                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
+                value={recipient}
+                onChange={(e) => setRecipient(e.target.value)}
+                placeholder="불출 대상자 이름 (필수)"
+              />
+            </label>
+          )}
           <label className="text-sm text-slate-700 md:col-span-2">
             비고
             <input type="text" className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2" value={note} onChange={(e) => setNote(e.target.value)} placeholder="선택 입력" />
