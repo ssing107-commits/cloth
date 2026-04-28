@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
-import { ITEMS } from "@/constants/items";
 import { useAppStore } from "@/store/useAppStore";
 import { downloadMonthlyCsv } from "@/utils/csv";
 
@@ -13,18 +12,31 @@ const currentMonth = Number(format(today, "MM"));
 const yearOptions = Array.from({ length: 7 }, (_, i) => currentYear - 3 + i);
 const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1);
 
-interface ItemSummary {
-  itemId: string;
-  itemLabel: string;
-  inTotal: number;
-  outTotal: number;
-  inByReason: Record<"stock-secure" | "new-hire" | "replacement", number>;
-  outByReason: Record<"stock-secure" | "new-hire" | "replacement", number>;
-}
+const REPORT_COLUMNS = [
+  { key: "jumper_spring", label: "춘추 점퍼", itemIds: ["jumper_spring"] },
+  { key: "jumper_winter", label: "동계 점퍼", itemIds: ["jumper_winter"] },
+  { key: "tshirt_short", label: "근무복 티셔츠 반팔", itemIds: ["tshirt_short"] },
+  { key: "tshirt_long", label: "근무복 티셔츠 긴팔", itemIds: ["tshirt_long"] },
+  { key: "work_spring", label: "근무복 하의", itemIds: ["work_spring"] },
+  { key: "safety_all", label: "안전화", itemIds: ["safety_office", "safety_work"] },
+] as const;
+
+type ColumnKey = (typeof REPORT_COLUMNS)[number]["key"];
+type TotalsByColumn = Record<ColumnKey, number>;
+
+const initTotals = (): TotalsByColumn =>
+  REPORT_COLUMNS.reduce(
+    (acc, column) => {
+      acc[column.key] = 0;
+      return acc;
+    },
+    {} as TotalsByColumn,
+  );
 
 export default function ReportTab() {
   const hydrated = useAppStore((state) => state.hydrated);
   const actions = useAppStore((state) => state.actions);
+  const inventory = useAppStore((state) => state.inventory);
   const [year, setYear] = useState(currentYear);
   const [month, setMonth] = useState(currentMonth);
   const [appliedMonth, setAppliedMonth] = useState(`${currentYear}-${String(currentMonth).padStart(2, "0")}`);
@@ -39,41 +51,69 @@ export default function ReportTab() {
     [monthlyActions],
   );
 
-  const summaries = useMemo<ItemSummary[]>(() => {
-    const itemMap = new Map<string, ItemSummary>();
-
+  const monthlyInByColumn = useMemo(() => {
+    const totals = initTotals();
     for (const action of monthlyActions) {
-      const item = ITEMS.find((it) => it.id === action.itemId);
-      if (!item) {
+      if (action.type !== "in") {
         continue;
       }
-
-      if (!itemMap.has(action.itemId)) {
-        itemMap.set(action.itemId, {
-          itemId: action.itemId,
-          itemLabel: `${item.name} ${item.sub}`,
-          inTotal: 0,
-          outTotal: 0,
-          inByReason: { "stock-secure": 0, "new-hire": 0, replacement: 0 },
-          outByReason: { "stock-secure": 0, "new-hire": 0, replacement: 0 },
-        });
-      }
-
-      const target = itemMap.get(action.itemId);
-      if (!target) {
+      const column = REPORT_COLUMNS.find((value) => value.itemIds.includes(action.itemId));
+      if (!column) {
         continue;
       }
+      totals[column.key] += action.qty;
+    }
+    return totals;
+  }, [monthlyActions]);
 
-      if (action.type === "in") {
-        target.inTotal += action.qty;
-        target.inByReason[action.reason] += action.qty;
-      } else {
-        target.outTotal += action.qty;
-        target.outByReason[action.reason] += action.qty;
+  const monthlyOutByColumn = useMemo(() => {
+    const totals = initTotals();
+    for (const action of monthlyActions) {
+      if (action.type !== "out") {
+        continue;
+      }
+      const column = REPORT_COLUMNS.find((value) => value.itemIds.includes(action.itemId));
+      if (!column) {
+        continue;
+      }
+      totals[column.key] += action.qty;
+    }
+    return totals;
+  }, [monthlyActions]);
+
+  const currentStockByColumn = useMemo(() => {
+    const totals = initTotals();
+    for (const column of REPORT_COLUMNS) {
+      totals[column.key] = column.itemIds.reduce((columnSum, itemId) => {
+        const sizeMap = inventory[itemId] ?? {};
+        const itemTotal = Object.values(sizeMap).reduce((sum, qty) => sum + Math.max(0, Number(qty) || 0), 0);
+        return columnSum + itemTotal;
+      }, 0);
+    }
+    return totals;
+  }, [inventory]);
+
+  const stockBeforeOutByColumn = useMemo(() => {
+    const totals = initTotals();
+    for (const column of REPORT_COLUMNS) {
+      totals[column.key] = currentStockByColumn[column.key] - monthlyInByColumn[column.key] + monthlyOutByColumn[column.key];
+    }
+    return totals;
+  }, [currentStockByColumn, monthlyInByColumn, monthlyOutByColumn]);
+
+  const outReasonSummary = useMemo(() => {
+    const reasonTotals = { "new-hire": 0, replacement: 0 };
+    for (const action of monthlyActions) {
+      if (action.type !== "out") {
+        continue;
+      }
+      if (action.reason === "replacement") {
+        reasonTotals.replacement += action.qty;
+      } else if (action.reason === "new-hire") {
+        reasonTotals["new-hire"] += action.qty;
       }
     }
-
-    return Array.from(itemMap.values());
+    return reasonTotals;
   }, [monthlyActions]);
 
   if (!hydrated) {
@@ -133,32 +173,67 @@ export default function ReportTab() {
         <StatCard title="총 불출 수량" value={totals.outQty} />
       </div>
 
-      {summaries.length === 0 ? (
+      {monthlyActions.length === 0 ? (
         <p className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">해당 월의 거래 기록이 없습니다.</p>
       ) : (
-        summaries.map((summary) => {
-          return (
-            <article key={summary.itemId} className="rounded-xl border border-slate-200 bg-white p-4">
-              <h3 className="mb-3 text-base font-semibold text-slate-900">{summary.itemLabel}</h3>
-              <div className="grid gap-2 text-sm sm:grid-cols-2">
-                <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">
-                  입고 수량: <span className="font-semibold">{summary.inTotal}</span>
-                </div>
-                <div className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-orange-800">
-                  불출 수량: <span className="font-semibold">{summary.outTotal}</span>
-                </div>
-              </div>
-              <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-                <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">
-                  입고 사유: 재고확보 {summary.inByReason["stock-secure"]}
-                </div>
-                <div className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-orange-800">
-                  불출 사유: 신규입사 {summary.outByReason["new-hire"]} / 노후교체 {summary.outByReason.replacement}
-                </div>
-              </div>
-            </article>
-          );
-        })
+        <article className="rounded-xl border border-slate-200 bg-white p-4">
+          <h3 className="mb-3 text-base font-semibold text-slate-900">{appliedMonth} 월별 요약</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-100 text-slate-800">
+                  <th className="px-2 py-2 text-left">구분</th>
+                  {REPORT_COLUMNS.map((column) => (
+                    <th key={column.key} className="px-2 py-2 text-right">
+                      {column.label}
+                    </th>
+                  ))}
+                  <th className="px-2 py-2 text-left">비고</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-slate-100">
+                  <td className="px-2 py-2 font-medium">불출 전 수량</td>
+                  {REPORT_COLUMNS.map((column) => (
+                    <td key={`start-${column.key}`} className="px-2 py-2 text-right">
+                      {stockBeforeOutByColumn[column.key]}
+                    </td>
+                  ))}
+                  <td className="px-2 py-2 text-slate-500">월초 기준 추정값</td>
+                </tr>
+                <tr className="border-b border-slate-100">
+                  <td className="px-2 py-2 font-medium">{month}월 불출 수량</td>
+                  {REPORT_COLUMNS.map((column) => (
+                    <td key={`out-${column.key}`} className="px-2 py-2 text-right">
+                      {monthlyOutByColumn[column.key]}
+                    </td>
+                  ))}
+                  <td className="px-2 py-2">
+                    신규입사 {outReasonSummary["new-hire"]} / 노후교체 {outReasonSummary.replacement}
+                  </td>
+                </tr>
+                <tr className="border-b border-slate-100 bg-yellow-50">
+                  <td className="px-2 py-2 font-semibold">구매 수량</td>
+                  {REPORT_COLUMNS.map((column) => (
+                    <td key={`in-${column.key}`} className="px-2 py-2 text-right font-semibold">
+                      {monthlyInByColumn[column.key]}
+                    </td>
+                  ))}
+                  <td className="px-2 py-2">입고 사유: 재고확보</td>
+                </tr>
+                <tr>
+                  <td className="px-2 py-2 font-medium">현재 보유 수량</td>
+                  {REPORT_COLUMNS.map((column) => (
+                    <td key={`current-${column.key}`} className="px-2 py-2 text-right">
+                      {currentStockByColumn[column.key]}
+                    </td>
+                  ))}
+                  <td className="px-2 py-2 text-slate-500">현재 재고 합계</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
       )}
     </section>
   );
