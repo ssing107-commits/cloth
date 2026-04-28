@@ -14,6 +14,7 @@ interface AppState {
   saveToCloud: () => Promise<void>;
   addAction: (log: ActionLog) => void;
   deleteAction: (id: string) => void;
+  updateActionDate: (id: string, date: string) => void;
   updateStock: (itemId: string, size: string, qty: number) => void;
   getStock: (itemId: string, size: string) => number;
 }
@@ -167,6 +168,12 @@ export const useAppStore = create<AppState>()((set, get) => ({
         actions: state.actions.filter((action) => action.id !== id),
       };
     });
+    void get().saveToCloud();
+  },
+  updateActionDate: (id, date) => {
+    set((state) => ({
+      actions: state.actions.map((action) => (action.id === id ? { ...action, date } : action)),
+    }));
     void get().saveToCloud();
   },
   updateStock: (itemId, size, qty) => {

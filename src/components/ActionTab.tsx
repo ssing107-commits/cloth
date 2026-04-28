@@ -27,6 +27,7 @@ export default function ActionTab() {
   const actions = useAppStore((state) => state.actions);
   const addAction = useAppStore((state) => state.addAction);
   const deleteAction = useAppStore((state) => state.deleteAction);
+  const updateActionDate = useAppStore((state) => state.updateActionDate);
   const getStock = useAppStore((state) => state.getStock);
 
   const [year, setYear] = useState(currentYear);
@@ -39,6 +40,8 @@ export default function ActionTab() {
   const [pendingRows, setPendingRows] = useState<PendingRow[]>([]);
   const [recipient, setRecipient] = useState("");
   const [note, setNote] = useState("");
+  const [editingActionId, setEditingActionId] = useState<string | null>(null);
+  const [editingDate, setEditingDate] = useState("");
 
   const selectedItem = useMemo(() => ITEMS.find((item) => item.id === itemId) ?? ITEMS[0], [itemId]);
   const sizes = useMemo(() => selectedItem?.sizes ?? [], [selectedItem]);
@@ -144,6 +147,26 @@ export default function ActionTab() {
     setQtyBySize({});
     setPendingRows([]);
     toast.success(type === "입고" ? `입고 ${allRows.length}건 등록 완료` : `불출 ${allRows.length}건 등록 완료`);
+  };
+
+  const startDateEdit = (action: ActionLog) => {
+    setEditingActionId(action.id);
+    setEditingDate(action.date);
+  };
+
+  const cancelDateEdit = () => {
+    setEditingActionId(null);
+    setEditingDate("");
+  };
+
+  const saveDateEdit = (actionId: string) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(editingDate)) {
+      toast.error("날짜 형식을 확인해 주세요. (YYYY-MM-DD)");
+      return;
+    }
+    updateActionDate(actionId, editingDate);
+    toast.success("날짜가 수정되었습니다.");
+    cancelDateEdit();
   };
 
   if (!hydrated) {
@@ -299,7 +322,18 @@ export default function ActionTab() {
               <tbody>
                 {actions.slice(0, 30).map((action) => (
                   <tr key={action.id} className="border-b border-slate-100">
-                    <td className="px-2 py-2">{action.date}</td>
+                    <td className="px-2 py-2">
+                      {editingActionId === action.id ? (
+                        <input
+                          type="date"
+                          className="w-36 rounded-md border border-slate-300 px-2 py-1 text-sm"
+                          value={editingDate}
+                          onChange={(e) => setEditingDate(e.target.value)}
+                        />
+                      ) : (
+                        action.date
+                      )}
+                    </td>
                     <td className="px-2 py-2">
                       <span className={`rounded-full px-2 py-1 text-xs font-semibold ${action.type === "in" ? "bg-emerald-100 text-emerald-700" : "bg-orange-100 text-orange-700"}`}>
                         {action.type === "in" ? "입고" : "불출"}
@@ -312,20 +346,51 @@ export default function ActionTab() {
                     <td className="px-2 py-2">{action.recipient || "-"}</td>
                     <td className="px-2 py-2">{action.note || "-"}</td>
                     <td className="px-2 py-2">
-                      <button
-                        type="button"
-                        className="rounded-md border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
-                        onClick={() => {
-                          const confirmed = window.confirm("해당 기록을 삭제하시겠습니까?");
-                          if (!confirmed) {
-                            return;
-                          }
-                          deleteAction(action.id);
-                          toast.success("기록이 삭제되었습니다.");
-                        }}
-                      >
-                        삭제
-                      </button>
+                      <div className="flex gap-1">
+                        {editingActionId === action.id ? (
+                          <>
+                            <button
+                              type="button"
+                              className="rounded-md border border-emerald-200 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                              onClick={() => saveDateEdit(action.id)}
+                            >
+                              저장
+                            </button>
+                            <button
+                              type="button"
+                              className="rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                              onClick={cancelDateEdit}
+                            >
+                              취소
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            className="rounded-md border border-blue-200 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50"
+                            onClick={() => startDateEdit(action)}
+                          >
+                            날짜수정
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="rounded-md border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                          onClick={() => {
+                            const confirmed = window.confirm("해당 기록을 삭제하시겠습니까?");
+                            if (!confirmed) {
+                              return;
+                            }
+                            deleteAction(action.id);
+                            toast.success("기록이 삭제되었습니다.");
+                            if (editingActionId === action.id) {
+                              cancelDateEdit();
+                            }
+                          }}
+                        >
+                          삭제
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
