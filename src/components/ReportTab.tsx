@@ -16,11 +16,10 @@ const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1);
 interface ItemSummary {
   itemId: string;
   itemLabel: string;
-  inBySize: Record<string, number>;
-  outBySize: Record<string, number>;
+  inTotal: number;
+  outTotal: number;
   inByReason: Record<"stock-secure" | "new-hire" | "replacement", number>;
   outByReason: Record<"stock-secure" | "new-hire" | "replacement", number>;
-  sizes: string[];
 }
 
 export default function ReportTab() {
@@ -53,11 +52,10 @@ export default function ReportTab() {
         itemMap.set(action.itemId, {
           itemId: action.itemId,
           itemLabel: `${item.name} ${item.sub}`,
-          inBySize: Object.fromEntries(item.sizes.map((size) => [size, 0])),
-          outBySize: Object.fromEntries(item.sizes.map((size) => [size, 0])),
+          inTotal: 0,
+          outTotal: 0,
           inByReason: { "stock-secure": 0, "new-hire": 0, replacement: 0 },
           outByReason: { "stock-secure": 0, "new-hire": 0, replacement: 0 },
-          sizes: item.sizes,
         });
       }
 
@@ -67,10 +65,10 @@ export default function ReportTab() {
       }
 
       if (action.type === "in") {
-        target.inBySize[action.size] = (target.inBySize[action.size] ?? 0) + action.qty;
+        target.inTotal += action.qty;
         target.inByReason[action.reason] += action.qty;
       } else {
-        target.outBySize[action.size] = (target.outBySize[action.size] ?? 0) + action.qty;
+        target.outTotal += action.qty;
         target.outByReason[action.reason] += action.qty;
       }
     }
@@ -139,50 +137,20 @@ export default function ReportTab() {
         <p className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">해당 월의 거래 기록이 없습니다.</p>
       ) : (
         summaries.map((summary) => {
-          const inTotal = summary.sizes.reduce((sum, size) => sum + (summary.inBySize[size] ?? 0), 0);
-          const outTotal = summary.sizes.reduce((sum, size) => sum + (summary.outBySize[size] ?? 0), 0);
-
           return (
             <article key={summary.itemId} className="rounded-xl border border-slate-200 bg-white p-4">
               <h3 className="mb-3 text-base font-semibold text-slate-900">{summary.itemLabel}</h3>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-slate-600">
-                      <th className="px-2 py-2 text-left">구분</th>
-                      {summary.sizes.map((size) => (
-                        <th key={size} className="px-2 py-2 text-right">
-                          {size}
-                        </th>
-                      ))}
-                      <th className="px-2 py-2 text-right">합계</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-b border-slate-100">
-                      <td className="px-2 py-2 font-medium text-emerald-700">입고</td>
-                      {summary.sizes.map((size) => (
-                        <td key={`in-${size}`} className="px-2 py-2 text-right">
-                          {summary.inBySize[size] === 0 ? "-" : summary.inBySize[size]}
-                        </td>
-                      ))}
-                      <td className="px-2 py-2 text-right font-semibold">{inTotal === 0 ? "-" : inTotal}</td>
-                    </tr>
-                    <tr>
-                      <td className="px-2 py-2 font-medium text-orange-700">불출</td>
-                      {summary.sizes.map((size) => (
-                        <td key={`out-${size}`} className="px-2 py-2 text-right">
-                          {summary.outBySize[size] === 0 ? "-" : summary.outBySize[size]}
-                        </td>
-                      ))}
-                      <td className="px-2 py-2 text-right font-semibold">{outTotal === 0 ? "-" : outTotal}</td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div className="grid gap-2 text-sm sm:grid-cols-2">
+                <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">
+                  입고 수량: <span className="font-semibold">{summary.inTotal}</span>
+                </div>
+                <div className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-orange-800">
+                  불출 수량: <span className="font-semibold">{summary.outTotal}</span>
+                </div>
               </div>
               <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
                 <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">
-                  입고 사유: 재고확보 {summary.inByReason["stock-secure"]} / 신규입사 {summary.inByReason["new-hire"]} / 노후교체 {summary.inByReason.replacement}
+                  입고 사유: 재고확보 {summary.inByReason["stock-secure"]}
                 </div>
                 <div className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-orange-800">
                   불출 사유: 신규입사 {summary.outByReason["new-hire"]} / 노후교체 {summary.outByReason.replacement}
