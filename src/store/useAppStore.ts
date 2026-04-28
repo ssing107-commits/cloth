@@ -51,6 +51,7 @@ const normalizeActions = (actions: ActionLog[] | undefined): ActionLog[] => {
 
   return actions.map((action) => ({
     ...action,
+    reason: action.reason === "replacement" ? "replacement" : "new-hire",
     note: typeof action.note === "string" ? action.note : "",
     recipient: typeof action.recipient === "string" ? action.recipient : "",
   }));

@@ -18,6 +18,8 @@ interface ItemSummary {
   itemLabel: string;
   inBySize: Record<string, number>;
   outBySize: Record<string, number>;
+  inByReason: Record<"new-hire" | "replacement", number>;
+  outByReason: Record<"new-hire" | "replacement", number>;
   sizes: string[];
 }
 
@@ -54,6 +56,8 @@ export default function ReportTab() {
           itemLabel: `${item.name} ${item.sub}`,
           inBySize: Object.fromEntries(item.sizes.map((size) => [size, 0])),
           outBySize: Object.fromEntries(item.sizes.map((size) => [size, 0])),
+          inByReason: { "new-hire": 0, replacement: 0 },
+          outByReason: { "new-hire": 0, replacement: 0 },
           sizes: item.sizes,
         });
       }
@@ -65,8 +69,10 @@ export default function ReportTab() {
 
       if (action.type === "in") {
         target.inBySize[action.size] = (target.inBySize[action.size] ?? 0) + action.qty;
+        target.inByReason[action.reason] += action.qty;
       } else {
         target.outBySize[action.size] = (target.outBySize[action.size] ?? 0) + action.qty;
+        target.outByReason[action.reason] += action.qty;
       }
     }
 
@@ -175,6 +181,14 @@ export default function ReportTab() {
                     </tr>
                   </tbody>
                 </table>
+              </div>
+              <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">
+                  입고 사유: 신규입사 {summary.inByReason["new-hire"]} / 노후교체 {summary.inByReason.replacement}
+                </div>
+                <div className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-orange-800">
+                  불출 사유: 신규입사 {summary.outByReason["new-hire"]} / 노후교체 {summary.outByReason.replacement}
+                </div>
               </div>
             </article>
           );

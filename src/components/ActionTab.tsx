@@ -23,6 +23,7 @@ export default function ActionTab() {
   const [month, setMonth] = useState(Number(format(today, "MM")));
   const [day, setDay] = useState(format(today, "dd"));
   const [type, setType] = useState<"in" | "out">("in");
+  const [reason, setReason] = useState<"new-hire" | "replacement">("new-hire");
   const [itemId, setItemId] = useState(ITEMS[0]?.id ?? "");
   const [qtyBySize, setQtyBySize] = useState<Record<string, number>>({});
   const [recipient, setRecipient] = useState("");
@@ -72,6 +73,7 @@ export default function ActionTab() {
         id: crypto.randomUUID(),
         date,
         type,
+        reason,
         itemId: selectedItem.id,
         itemLabel,
         size: row.size,
@@ -126,6 +128,13 @@ export default function ActionTab() {
             <select className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2" value={type} onChange={(e) => setType(e.target.value as "in" | "out")}>
               <option value="in">입고</option>
               <option value="out">불출</option>
+            </select>
+          </label>
+          <label className="text-sm text-slate-700">
+            사유
+            <select className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2" value={reason} onChange={(e) => setReason(e.target.value as "new-hire" | "replacement")}>
+              <option value="new-hire">신규입사</option>
+              <option value="replacement">노후교체</option>
             </select>
           </label>
           <label className="text-sm text-slate-700">
@@ -192,6 +201,7 @@ export default function ActionTab() {
                   <th className="px-2 py-2">날짜</th>
                   <th className="px-2 py-2">유형</th>
                   <th className="px-2 py-2">품목</th>
+                  <th className="px-2 py-2">사유</th>
                   <th className="px-2 py-2">사이즈</th>
                   <th className="px-2 py-2">수량</th>
                   <th className="px-2 py-2">불출 대상자</th>
@@ -209,6 +219,7 @@ export default function ActionTab() {
                       </span>
                     </td>
                     <td className="px-2 py-2">{action.itemLabel}</td>
+                    <td className="px-2 py-2">{action.reason === "replacement" ? "노후교체" : "신규입사"}</td>
                     <td className="px-2 py-2">{action.size}</td>
                     <td className="px-2 py-2">{action.qty}</td>
                     <td className="px-2 py-2">{action.recipient || "-"}</td>
