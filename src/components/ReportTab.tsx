@@ -209,7 +209,7 @@ export default function ReportTab() {
                       {stockBeforeOutByColumn[column.key]}
                     </td>
                   ))}
-                  <td className="px-2 py-2 text-slate-500">월초 기준 추정값</td>
+                  <td className="px-2 py-2 text-slate-500">전월 재고 보관분</td>
                 </tr>
                 <tr className="border-b border-slate-100">
                   <td className="px-2 py-2 font-medium">{month}월 불출 수량</td>
