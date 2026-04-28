@@ -43,6 +43,7 @@ const ensureInventoryShape = (inventory: Inventory): Inventory => {
 
 const APP_DOC = doc(db, "cloth", "main");
 const FIRESTORE_WRITE_KEY = process.env.NEXT_PUBLIC_FIREBASE_WRITE_KEY ?? "";
+const normalizeItemLabel = (value: string): string => value.replace("근무복 춘추", "근무복 하의");
 
 const normalizeActions = (actions: ActionLog[] | undefined): ActionLog[] => {
   if (!Array.isArray(actions)) {
@@ -51,6 +52,7 @@ const normalizeActions = (actions: ActionLog[] | undefined): ActionLog[] => {
 
   return actions.map((action) => ({
     ...action,
+    itemLabel: normalizeItemLabel(typeof action.itemLabel === "string" ? action.itemLabel : ""),
     reason: action.reason === "replacement" ? "replacement" : "new-hire",
     note: typeof action.note === "string" ? action.note : "",
     recipient: typeof action.recipient === "string" ? action.recipient : "",

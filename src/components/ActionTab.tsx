@@ -12,6 +12,13 @@ const currentYear = Number(format(today, "yyyy"));
 const yearOptions = Array.from({ length: 7 }, (_, i) => currentYear - 3 + i);
 const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1);
 
+interface PendingRow {
+  itemId: string;
+  itemLabel: string;
+  size: string;
+  qty: number;
+}
+
 export default function ActionTab() {
   const hydrated = useAppStore((state) => state.hydrated);
   const actions = useAppStore((state) => state.actions);
@@ -26,29 +33,72 @@ export default function ActionTab() {
   const [reason, setReason] = useState<"new-hire" | "replacement">("new-hire");
   const [itemId, setItemId] = useState(ITEMS[0]?.id ?? "");
   const [qtyBySize, setQtyBySize] = useState<Record<string, number>>({});
+  const [pendingRows, setPendingRows] = useState<PendingRow[]>([]);
   const [recipient, setRecipient] = useState("");
   const [note, setNote] = useState("");
 
   const selectedItem = useMemo(() => ITEMS.find((item) => item.id === itemId) ?? ITEMS[0], [itemId]);
-  const sizes = selectedItem?.sizes ?? [];
+  const sizes = useMemo(() => selectedItem?.sizes ?? [], [selectedItem]);
 
   const handleItemChange = (nextItemId: string) => {
     setItemId(nextItemId);
     setQtyBySize({});
   };
 
-  const submit = () => {
+  const selectedRows = useMemo(
+    () => sizes.map((size) => ({ size, qty: Math.max(0, Number(qtyBySize[size] ?? 0)) })).filter((row) => row.qty > 0),
+    [sizes, qtyBySize],
+  );
+
+  const mergeRows = (rows: PendingRow[]): PendingRow[] => {
+    const merged = new Map<string, PendingRow>();
+    for (const row of rows) {
+      const key = `${row.itemId}::${row.size}`;
+      const existing = merged.get(key);
+      if (existing) {
+        existing.qty += row.qty;
+        continue;
+      }
+      merged.set(key, { ...row });
+    }
+    return Array.from(merged.values());
+  };
+
+  const addCurrentRowsToPending = () => {
     if (!selectedItem) {
       toast.error("입력값을 확인해 주세요.");
       return;
     }
-
-    const selectedRows = sizes
-      .map((size) => ({ size, qty: Math.max(0, Number(qtyBySize[size] ?? 0)) }))
-      .filter((row) => row.qty > 0);
-
     if (selectedRows.length === 0) {
       toast.error("사이즈별 수량을 1개 이상 입력해 주세요.");
+      return;
+    }
+    const itemLabel = `${selectedItem.name} ${selectedItem.sub}`;
+    const nextRows = selectedRows.map((row) => ({
+      itemId: selectedItem.id,
+      itemLabel,
+      size: row.size,
+      qty: row.qty,
+    }));
+    setPendingRows((prev) => mergeRows([...prev, ...nextRows]));
+    setQtyBySize({});
+    toast.success(`${itemLabel} ${selectedRows.length}건을 묶음 목록에 추가했습니다.`);
+  };
+
+  const submit = () => {
+    const currentRows =
+      selectedItem && selectedRows.length > 0
+        ? selectedRows.map((row) => ({
+            itemId: selectedItem.id,
+            itemLabel: `${selectedItem.name} ${selectedItem.sub}`,
+            size: row.size,
+            qty: row.qty,
+          }))
+        : [];
+    const allRows = mergeRows([...pendingRows, ...currentRows]);
+
+    if (allRows.length === 0) {
+      toast.error("등록할 수량을 먼저 입력하거나 묶음 목록에 추가해 주세요.");
       return;
     }
     if (type === "out" && recipient.trim().length === 0) {
@@ -58,24 +108,23 @@ export default function ActionTab() {
 
     const safeDay = String(Math.min(31, Math.max(1, Number(day) || 1))).padStart(2, "0");
     const date = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${safeDay}`;
-    const itemLabel = `${selectedItem.name} ${selectedItem.sub}`;
 
-    for (const row of selectedRows) {
-      const stock = getStock(selectedItem.id, row.size);
+    for (const row of allRows) {
+      const stock = getStock(row.itemId, row.size);
       if (type === "out" && stock < row.qty) {
-        toast.error(`재고 부족: ${row.size}`);
+        toast.error(`재고 부족: ${row.itemLabel} ${row.size}`);
         return;
       }
     }
 
-    for (const row of selectedRows) {
+    for (const row of allRows) {
       const log: ActionLog = {
         id: crypto.randomUUID(),
         date,
         type,
         reason,
-        itemId: selectedItem.id,
-        itemLabel,
+        itemId: row.itemId,
+        itemLabel: row.itemLabel,
         size: row.size,
         qty: row.qty,
         recipient: recipient.trim(),
@@ -87,7 +136,8 @@ export default function ActionTab() {
     setNote("");
     setRecipient("");
     setQtyBySize({});
-    toast.success(type === "in" ? `입고 ${selectedRows.length}건 등록 완료` : `불출 ${selectedRows.length}건 등록 완료`);
+    setPendingRows([]);
+    toast.success(type === "in" ? `입고 ${allRows.length}건 등록 완료` : `불출 ${allRows.length}건 등록 완료`);
   };
 
   if (!hydrated) {
@@ -188,9 +238,36 @@ export default function ActionTab() {
             ))}
           </div>
         </div>
-        <button type="button" className="mt-4 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700" onClick={submit}>
-          등록
-        </button>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button type="button" className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={addCurrentRowsToPending}>
+            현재 품목 묶음에 추가
+          </button>
+          <button type="button" className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700" onClick={submit}>
+            등록
+          </button>
+        </div>
+        <div className="mt-3 rounded-lg border border-slate-200 p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-sm font-medium text-slate-700">묶음 목록 ({pendingRows.length}건)</p>
+            <button type="button" className="text-xs font-semibold text-slate-500 hover:text-slate-700" onClick={() => setPendingRows([])}>
+              목록 비우기
+            </button>
+          </div>
+          {pendingRows.length === 0 ? (
+            <p className="text-sm text-slate-500">추가된 항목이 없습니다. 다른 품목과 함께 등록하려면 먼저 묶음에 추가하세요.</p>
+          ) : (
+            <ul className="space-y-1 text-sm text-slate-700">
+              {pendingRows.map((row) => (
+                <li key={`${row.itemId}-${row.size}`} className="flex items-center justify-between rounded-md border border-slate-200 px-2 py-1">
+                  <span>
+                    {row.itemLabel} / {row.size}
+                  </span>
+                  <span className="font-semibold">{row.qty}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-4">

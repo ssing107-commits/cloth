@@ -42,7 +42,7 @@ export const ITEMS: ItemDefinition[] = [
   {
     id: "work_spring",
     name: "근무복",
-    sub: "춘추",
+    sub: "하의",
     sizes: ["28", "30", "32", "34", "36", "38", "40", "42", "44"],
   },
   {
