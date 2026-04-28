@@ -21,6 +21,7 @@ interface PendingRow {
 
 type ActionTypeLabel = "입고" | "불출";
 type ActionReasonLabel = "신규입사" | "노후교체";
+type DateSort = "date-desc" | "date-asc";
 
 export default function ActionTab() {
   const hydrated = useAppStore((state) => state.hydrated);
@@ -42,6 +43,8 @@ export default function ActionTab() {
   const [note, setNote] = useState("");
   const [editingActionId, setEditingActionId] = useState<string | null>(null);
   const [editingDate, setEditingDate] = useState("");
+  const [selectedHistoryMonth, setSelectedHistoryMonth] = useState("");
+  const [dateSort, setDateSort] = useState<DateSort>("date-desc");
 
   const selectedItem = useMemo(() => ITEMS.find((item) => item.id === itemId) ?? ITEMS[0], [itemId]);
   const sizes = useMemo(() => selectedItem?.sizes ?? [], [selectedItem]);
@@ -55,6 +58,15 @@ export default function ActionTab() {
     () => sizes.map((size) => ({ size, qty: Math.max(0, Number(qtyBySize[size] ?? 0)) })).filter((row) => row.qty > 0),
     [sizes, qtyBySize],
   );
+  const historyMonths = useMemo(() => {
+    const monthSet = new Set(actions.map((action) => action.date.slice(0, 7)).filter((value) => /^\d{4}-\d{2}$/.test(value)));
+    return Array.from(monthSet.values()).sort((a, b) => b.localeCompare(a));
+  }, [actions]);
+  const effectiveHistoryMonth = selectedHistoryMonth && historyMonths.includes(selectedHistoryMonth) ? selectedHistoryMonth : (historyMonths[0] ?? "");
+  const historyRows = useMemo(() => {
+    const base = effectiveHistoryMonth ? actions.filter((action) => action.date.startsWith(effectiveHistoryMonth)) : actions;
+    return [...base].sort((a, b) => (dateSort === "date-desc" ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date)));
+  }, [actions, effectiveHistoryMonth, dateSort]);
 
   const mergeRows = (rows: PendingRow[]): PendingRow[] => {
     const merged = new Map<string, PendingRow>();
@@ -300,28 +312,55 @@ export default function ActionTab() {
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-4">
-        <h3 className="mb-3 text-base font-semibold text-slate-900">최근 기록 (최신 30건)</h3>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-base font-semibold text-slate-900">최근 기록 (월별 조회)</h3>
+          <label className="text-sm text-slate-700">
+            날짜 정렬
+            <select className="ml-2 rounded-md border border-slate-300 px-2 py-1" value={dateSort} onChange={(e) => setDateSort(e.target.value as DateSort)}>
+              <option value="date-desc">최신순</option>
+              <option value="date-asc">과거순</option>
+            </select>
+          </label>
+        </div>
         {actions.length === 0 ? (
           <p className="text-sm text-slate-500">등록된 기록이 없습니다.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-left text-slate-600">
-                  <th className="px-2 py-2">날짜</th>
-                  <th className="px-2 py-2">유형</th>
-                  <th className="px-2 py-2">품목</th>
-                  <th className="px-2 py-2">사유</th>
-                  <th className="px-2 py-2">사이즈</th>
-                  <th className="px-2 py-2">수량</th>
-                  <th className="px-2 py-2">불출 대상자</th>
-                  <th className="px-2 py-2">비고</th>
-                  <th className="px-2 py-2">관리</th>
-                </tr>
-              </thead>
-              <tbody>
-                {actions.slice(0, 30).map((action) => (
-                  <tr key={action.id} className="border-b border-slate-100">
+          <>
+            <div className="mb-3 flex flex-wrap gap-2">
+              {historyMonths.map((monthKey) => (
+                <button
+                  key={monthKey}
+                  type="button"
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                    effectiveHistoryMonth === monthKey ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-300 text-slate-600 hover:bg-slate-50"
+                  }`}
+                  onClick={() => setSelectedHistoryMonth(monthKey)}
+                >
+                  {monthKey}
+                </button>
+              ))}
+            </div>
+            {historyRows.length === 0 ? (
+              <p className="text-sm text-slate-500">선택한 월의 기록이 없습니다.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-left text-slate-600">
+                      <th className="px-2 py-2">날짜</th>
+                      <th className="px-2 py-2">유형</th>
+                      <th className="px-2 py-2">품목</th>
+                      <th className="px-2 py-2">사유</th>
+                      <th className="px-2 py-2">사이즈</th>
+                      <th className="px-2 py-2">수량</th>
+                      <th className="px-2 py-2">불출 대상자</th>
+                      <th className="px-2 py-2">비고</th>
+                      <th className="px-2 py-2">관리</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historyRows.map((action) => (
+                      <tr key={action.id} className="border-b border-slate-100">
                     <td className="px-2 py-2">
                       {editingActionId === action.id ? (
                         <input
@@ -392,11 +431,13 @@ export default function ActionTab() {
                         </button>
                       </div>
                     </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
         )}
       </div>
     </section>
