@@ -24,6 +24,16 @@ const REPORT_COLUMNS = [
 type ColumnKey = (typeof REPORT_COLUMNS)[number]["key"];
 type TotalsByColumn = Record<ColumnKey, number>;
 
+const ITEM_ID_TO_COLUMN_KEY: Record<string, ColumnKey> = REPORT_COLUMNS.reduce(
+  (acc, column) => {
+    for (const itemId of column.itemIds) {
+      acc[itemId] = column.key;
+    }
+    return acc;
+  },
+  {} as Record<string, ColumnKey>,
+);
+
 const initTotals = (): TotalsByColumn =>
   REPORT_COLUMNS.reduce(
     (acc, column) => {
@@ -57,11 +67,11 @@ export default function ReportTab() {
       if (action.type !== "in") {
         continue;
       }
-      const column = REPORT_COLUMNS.find((value) => value.itemIds.includes(action.itemId));
-      if (!column) {
+      const columnKey = ITEM_ID_TO_COLUMN_KEY[action.itemId];
+      if (!columnKey) {
         continue;
       }
-      totals[column.key] += action.qty;
+      totals[columnKey] += action.qty;
     }
     return totals;
   }, [monthlyActions]);
@@ -72,11 +82,11 @@ export default function ReportTab() {
       if (action.type !== "out") {
         continue;
       }
-      const column = REPORT_COLUMNS.find((value) => value.itemIds.includes(action.itemId));
-      if (!column) {
+      const columnKey = ITEM_ID_TO_COLUMN_KEY[action.itemId];
+      if (!columnKey) {
         continue;
       }
-      totals[column.key] += action.qty;
+      totals[columnKey] += action.qty;
     }
     return totals;
   }, [monthlyActions]);
