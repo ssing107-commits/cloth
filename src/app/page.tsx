@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import { Toaster } from "react-hot-toast";
 import ActionTab from "@/components/ActionTab";
 import InventoryTab from "@/components/InventoryTab";
+import PurchaseTab from "@/components/PurchaseTab";
 import ReportTab from "@/components/ReportTab";
 import TabNav from "@/components/TabNav";
 import { useAppStore } from "@/store/useAppStore";
 
-type TabType = "inventory" | "action" | "report";
+type TabType = "inventory" | "action" | "report" | "purchase";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>("inventory");
@@ -35,6 +36,7 @@ export default function Home() {
           <>
             {activeTab === "inventory" && <InventoryTab />}
             {activeTab === "action" && <ActionTab />}
+            {activeTab === "purchase" && <PurchaseTab />}
             {activeTab === "report" && <ReportTab />}
           </>
         )}

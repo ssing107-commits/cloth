@@ -1,18 +1,19 @@
 interface TabNavProps {
-  active: "inventory" | "action" | "report";
-  onChange: (tab: "inventory" | "action" | "report") => void;
+  active: "inventory" | "action" | "report" | "purchase";
+  onChange: (tab: "inventory" | "action" | "report" | "purchase") => void;
 }
 
 const tabs: Array<{ id: TabNavProps["active"]; label: string }> = [
   { id: "inventory", label: "재고 현황" },
   { id: "action", label: "입고·불출" },
+  { id: "purchase", label: "구매 필요" },
   { id: "report", label: "월별 보고서" },
 ];
 
 export default function TabNav({ active, onChange }: TabNavProps) {
   return (
     <nav className="mb-6">
-      <ul className="grid grid-cols-3 gap-2 rounded-lg bg-slate-100 p-2">
+      <ul className="grid grid-cols-4 gap-2 rounded-lg bg-slate-100 p-2">
         {tabs.map((tab) => (
           <li key={tab.id}>
             <button

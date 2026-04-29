@@ -29,7 +29,6 @@ export default function ActionTab() {
   const addAction = useAppStore((state) => state.addAction);
   const deleteAction = useAppStore((state) => state.deleteAction);
   const updateActionDate = useAppStore((state) => state.updateActionDate);
-  const getStock = useAppStore((state) => state.getStock);
 
   const [year, setYear] = useState(currentYear);
   const [month, setMonth] = useState(Number(format(today, "MM")));
@@ -126,14 +125,6 @@ export default function ActionTab() {
 
     const safeDay = String(Math.min(31, Math.max(1, Number(day) || 1))).padStart(2, "0");
     const date = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${safeDay}`;
-
-    for (const row of allRows) {
-      const stock = getStock(row.itemId, row.size);
-      if (type === "불출" && stock < row.qty) {
-        toast.error(`재고 부족: ${row.itemLabel} ${row.size}`);
-        return;
-      }
-    }
 
     const actionType: "in" | "out" = type === "입고" ? "in" : "out";
     const actionReason: "stock-secure" | "new-hire" | "replacement" = actionType === "in" ? "stock-secure" : reason === "신규입사" ? "new-hire" : "replacement";

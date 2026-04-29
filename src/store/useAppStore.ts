@@ -35,7 +35,8 @@ const ensureInventoryShape = (inventory: Inventory): Inventory => {
     const savedItem = inventory[item.id] ?? {};
     for (const size of item.sizes) {
       const value = savedItem[size];
-      base[item.id][size] = Number.isFinite(value) ? Math.max(0, Number(value)) : 0;
+      // 재고는 사용자가 수동으로 부족 상태(-)를 입력할 수 있으므로 0으로 클램프하지 않는다.
+      base[item.id][size] = Number.isFinite(value) ? Number(value) : 0;
     }
   }
 
@@ -132,7 +133,8 @@ export const useAppStore = create<AppState>()((set, get) => ({
   addAction: (log) => {
     set((state) => {
       const current = state.inventory[log.itemId]?.[log.size] ?? 0;
-      const nextValue = log.type === "in" ? current + log.qty : Math.max(0, current - log.qty);
+      // 불출로 인해 재고가 음수가 될 수 있도록 0 클램프 제거
+      const nextValue = log.type === "in" ? current + log.qty : current - log.qty;
 
       return {
         inventory: {
@@ -155,7 +157,8 @@ export const useAppStore = create<AppState>()((set, get) => ({
       }
 
       const current = state.inventory[target.itemId]?.[target.size] ?? 0;
-      const reverted = target.type === "in" ? Math.max(0, current - target.qty) : current + target.qty;
+      // 되돌리기에서도 음수 재고를 허용
+      const reverted = target.type === "in" ? current - target.qty : current + target.qty;
 
       return {
         inventory: {
@@ -177,7 +180,8 @@ export const useAppStore = create<AppState>()((set, get) => ({
     void get().saveToCloud();
   },
   updateStock: (itemId, size, qty) => {
-    const nextQty = Number.isFinite(qty) ? Math.max(0, qty) : 0;
+    // 재고는 음수도 가능(부족 상태를 별도로 표시/계산하기 위함)
+    const nextQty = Number.isFinite(qty) ? qty : 0;
     set((state) => ({
       inventory: {
         ...state.inventory,

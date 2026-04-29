@@ -86,7 +86,6 @@ export default function InventoryTab() {
                           <td className="px-2 py-1.5">
                             <input
                               type="number"
-                              min={0}
                               className={`w-20 rounded-md border px-2 py-1 text-sm ${
                                 isLowStock ? "border-red-300 bg-red-50 text-red-700" : "border-slate-300"
                               }`}
