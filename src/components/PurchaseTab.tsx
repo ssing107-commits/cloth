@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import toast from "react-hot-toast";
 import { ITEMS } from "@/constants/items";
 import { useAppStore } from "@/store/useAppStore";
 
@@ -45,6 +46,31 @@ export default function PurchaseTab() {
     }, 0);
   }, [filteredItems, inventory]);
 
+  const purchaseSummaryText = useMemo(() => {
+    const blocks: string[] = [];
+
+    for (const item of filteredItems) {
+      const neededRows = item.sizes
+        .map((size) => {
+          const qty = inventory[item.id]?.[size] ?? 0;
+          const safeMin = SAFE_MIN_BY_ITEM_ID[item.id] ?? 1;
+          const needed = Math.max(0, safeMin - qty);
+          return { size, qty, needed };
+        })
+        .filter((row) => row.needed > 0);
+
+      if (neededRows.length === 0) continue;
+
+      blocks.push(`${item.name} ${item.sub}`);
+      for (const row of neededRows) {
+        blocks.push(`${row.size} ${row.needed}개`);
+      }
+      blocks.push(""); // 항목 사이 빈 줄
+    }
+
+    return blocks.join("\n").trimEnd();
+  }, [filteredItems, inventory]);
+
   if (!hydrated) {
     return <p className="rounded-lg border border-slate-200 bg-white p-5 text-sm text-slate-500">데이터를 불러오는 중입니다...</p>;
   }
@@ -73,6 +99,30 @@ export default function PurchaseTab() {
       <div className="rounded-lg border border-slate-200 bg-white p-3">
         <p className="text-sm font-semibold text-slate-900">총 구매 필요: {totalNeeded}</p>
         <p className="mt-1 text-xs text-slate-500">현재 수량이 안전 최소 재고 이하이면 부족분만큼 구매 필요 개수를 표시합니다.</p>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+            onClick={() => {
+              if (!purchaseSummaryText) {
+                toast.success("구매 필요 항목이 없습니다.");
+                return;
+              }
+
+              const blob = new Blob([purchaseSummaryText], { type: "text/plain;charset=utf-8" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              const date = new Date().toISOString().slice(0, 10);
+              a.href = url;
+              a.download = `구매필요_요약_${date}.txt`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+          >
+            구매 필요 요약 TXT 다운로드
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
