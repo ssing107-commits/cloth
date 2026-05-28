@@ -187,10 +187,10 @@ export default function ReportTab() {
   }
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-4 text-[13px] tracking-[-0.012em]">
       <div className="rounded-xl border border-slate-200 bg-white p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <label className="text-sm text-slate-700">
+          <label className="text-xs text-slate-700">
             조회 시작일
             <input
               type="date"
@@ -200,7 +200,7 @@ export default function ReportTab() {
               onChange={(e) => setRangeStart(e.target.value)}
             />
           </label>
-          <label className="text-sm text-slate-700">
+          <label className="text-xs text-slate-700">
             조회 종료일
             <input
               type="date"
@@ -213,14 +213,14 @@ export default function ReportTab() {
           </label>
           <button
             type="button"
-            className="h-10 rounded-md bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700"
+            className="h-10 rounded-md bg-blue-600 px-4 text-xs font-semibold text-white hover:bg-blue-700"
             onClick={handleGenerateReport}
           >
             보고서 생성
           </button>
           <button
             type="button"
-            className="h-10 rounded-md border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            className="h-10 rounded-md border border-slate-300 px-4 text-xs font-semibold text-slate-700 hover:bg-slate-50"
             onClick={() => {
               if (!reportReady || !appliedStart || !appliedEnd) {
                 toast.error("먼저 보고서를 생성해주세요.");
@@ -254,10 +254,10 @@ export default function ReportTab() {
               {appliedStart} ~ {appliedEnd} 기간 요약
             </h3>
             {periodActions.length === 0 && (
-              <p className="mb-3 text-sm text-amber-700">해당 기간의 입·불출 기록은 없습니다. 재고는 시작 전일·종료일 기준으로 표시됩니다.</p>
+              <p className="mb-3 text-xs text-amber-700">해당 기간의 입·불출 기록은 없습니다. 재고는 시작 전일·종료일 기준으로 표시됩니다.</p>
             )}
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
+              <table className="min-w-full text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-100 text-slate-800">
                     <th className="px-2 py-2 text-left">구분</th>
