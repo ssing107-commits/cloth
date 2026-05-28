@@ -9,6 +9,7 @@ import { downloadMonthlyCsv } from "@/utils/csv";
 const today = new Date();
 const currentYear = Number(format(today, "yyyy"));
 const currentMonth = Number(format(today, "MM"));
+const todayYmd = format(today, "yyyy-MM-dd");
 const yearOptions = Array.from({ length: 7 }, (_, i) => currentYear - 3 + i);
 const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1);
 
@@ -51,9 +52,14 @@ export default function ReportTab() {
   const inventory = useAppStore((state) => state.inventory);
   const [year, setYear] = useState(currentYear);
   const [month, setMonth] = useState(currentMonth);
+  const [cutoffDate, setCutoffDate] = useState(todayYmd);
   const [appliedMonth, setAppliedMonth] = useState(`${currentYear}-${String(currentMonth).padStart(2, "0")}`);
+  const [appliedCutoffDate, setAppliedCutoffDate] = useState(todayYmd);
 
-  const monthlyActions = useMemo(() => actions.filter((action) => action.date.startsWith(appliedMonth)), [actions, appliedMonth]);
+  const monthlyActions = useMemo(
+    () => actions.filter((action) => action.date.startsWith(appliedMonth) && action.date <= appliedCutoffDate),
+    [actions, appliedMonth, appliedCutoffDate],
+  );
 
   const totals = useMemo(
     () => ({
@@ -93,17 +99,41 @@ export default function ReportTab() {
     return totals;
   }, [monthlyActions]);
 
+  const inventoryAtCutoff = useMemo(() => {
+    const snapshot = Object.fromEntries(
+      Object.entries(inventory).map(([itemId, sizeMap]) => [
+        itemId,
+        Object.fromEntries(Object.entries(sizeMap).map(([size, qty]) => [size, Number(qty) || 0])),
+      ]),
+    ) as typeof inventory;
+
+    for (const action of actions) {
+      if (action.date <= appliedCutoffDate) {
+        continue;
+      }
+
+      const current = snapshot[action.itemId]?.[action.size] ?? 0;
+      const revertedQty = action.type === "in" ? current - action.qty : current + action.qty;
+      if (!snapshot[action.itemId]) {
+        snapshot[action.itemId] = {};
+      }
+      snapshot[action.itemId][action.size] = revertedQty;
+    }
+
+    return snapshot;
+  }, [inventory, actions, appliedCutoffDate]);
+
   const currentStockByColumn = useMemo(() => {
     const totals = initTotals();
     for (const column of REPORT_COLUMNS) {
       totals[column.key] = column.itemIds.reduce((columnSum, itemId) => {
-        const sizeMap = inventory[itemId] ?? {};
+        const sizeMap = inventoryAtCutoff[itemId] ?? {};
         const itemTotal = Object.values(sizeMap).reduce((sum, qty) => sum + Math.max(0, Number(qty) || 0), 0);
         return columnSum + itemTotal;
       }, 0);
     }
     return totals;
-  }, [inventory]);
+  }, [inventoryAtCutoff]);
 
   const stockBeforeOutByColumn = useMemo(() => {
     const totals = initTotals();
@@ -156,10 +186,23 @@ export default function ReportTab() {
               ))}
             </select>
           </label>
+          <label className="text-sm text-slate-700">
+            기준일자
+            <input
+              type="date"
+              className="mt-1 block rounded-md border border-slate-300 px-3 py-2"
+              value={cutoffDate}
+              max={todayYmd}
+              onChange={(e) => setCutoffDate(e.target.value)}
+            />
+          </label>
           <button
             type="button"
             className="h-10 rounded-md bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700"
-            onClick={() => setAppliedMonth(`${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}`)}
+            onClick={() => {
+              setAppliedMonth(`${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}`);
+              setAppliedCutoffDate(cutoffDate);
+            }}
           >
             보고서 생성
           </button>
@@ -189,7 +232,9 @@ export default function ReportTab() {
         <p className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">해당 월의 거래 기록이 없습니다.</p>
       ) : (
         <article className="rounded-xl border border-slate-200 bg-white p-4">
-          <h3 className="mb-3 text-base font-semibold text-slate-900">{appliedMonth} 월별 요약</h3>
+          <h3 className="mb-3 text-base font-semibold text-slate-900">
+            {appliedMonth} 월별 요약 (기준일자: {appliedCutoffDate})
+          </h3>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
@@ -238,14 +283,14 @@ export default function ReportTab() {
                   <td className="px-2 py-2">입고 사유: 재고확보</td>
                 </tr>
                 <tr>
-                  <td className="px-2 py-2 font-medium">현재 보유 수량</td>
+                  <td className="px-2 py-2 font-medium">기준일 보유 수량</td>
                   {REPORT_COLUMNS.map((column) => (
                     <td key={`current-${column.key}`} className="px-2 py-2 text-right">
                       {currentStockByColumn[column.key]}
                     </td>
                   ))}
                   <td className="px-2 py-2 text-right font-medium">{sumTotals(currentStockByColumn)}</td>
-                  <td className="px-2 py-2 text-slate-500">현재 재고 합계</td>
+                  <td className="px-2 py-2 text-slate-500">{appliedCutoffDate} 기준 재고 합계</td>
                 </tr>
               </tbody>
             </table>
