@@ -43,6 +43,8 @@ const initTotals = (): TotalsByColumn =>
     {} as TotalsByColumn,
   );
 
+const sumTotals = (totals: TotalsByColumn): number => REPORT_COLUMNS.reduce((sum, column) => sum + totals[column.key], 0);
+
 export default function ReportTab() {
   const hydrated = useAppStore((state) => state.hydrated);
   const actions = useAppStore((state) => state.actions);
@@ -198,6 +200,7 @@ export default function ReportTab() {
                       {column.label}
                     </th>
                   ))}
+                  <th className="px-2 py-2 text-right">총계</th>
                   <th className="px-2 py-2 text-left">비고</th>
                 </tr>
               </thead>
@@ -209,6 +212,7 @@ export default function ReportTab() {
                       {stockBeforeOutByColumn[column.key]}
                     </td>
                   ))}
+                  <td className="px-2 py-2 text-right font-medium">{sumTotals(stockBeforeOutByColumn)}</td>
                   <td className="px-2 py-2 text-slate-500">전월 재고 보관분</td>
                 </tr>
                 <tr className="border-b border-slate-100">
@@ -218,6 +222,7 @@ export default function ReportTab() {
                       {monthlyOutByColumn[column.key]}
                     </td>
                   ))}
+                  <td className="px-2 py-2 text-right font-medium">{sumTotals(monthlyOutByColumn)}</td>
                   <td className="px-2 py-2">
                     신규입사 {outReasonSummary["new-hire"]} / 노후교체 {outReasonSummary.replacement}
                   </td>
@@ -229,6 +234,7 @@ export default function ReportTab() {
                       {monthlyInByColumn[column.key]}
                     </td>
                   ))}
+                  <td className="px-2 py-2 text-right font-semibold">{sumTotals(monthlyInByColumn)}</td>
                   <td className="px-2 py-2">입고 사유: 재고확보</td>
                 </tr>
                 <tr>
@@ -238,6 +244,7 @@ export default function ReportTab() {
                       {currentStockByColumn[column.key]}
                     </td>
                   ))}
+                  <td className="px-2 py-2 text-right font-medium">{sumTotals(currentStockByColumn)}</td>
                   <td className="px-2 py-2 text-slate-500">현재 재고 합계</td>
                 </tr>
               </tbody>
